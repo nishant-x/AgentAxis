@@ -2,6 +2,15 @@ import User from "../models/User.js";
 import AgentList from "../models/AgentList.js";
 import fs from "fs";
 import csvParser from "csv-parser";
+import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
+
+// Regex patterns
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const mobileRegex = /^[0-9]{10}$/;
+
+// Validate ObjectId
+const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 // Get all agents
 export const getAllAgents = async (req, res) => {
@@ -24,22 +33,27 @@ export const createAgent = async (req, res) => {
     if (name.trim().length < 3) {
       return res.status(400).json({ message: "Name must be at least 3 characters long" });
     }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return res.status(400).json({ message: "Invalid email format" });
-
-    const mobileRegex = /^[0-9]{10}$/;
-    if (!mobileRegex.test(mobile)) return res.status(400).json({ message: "Mobile number must be 10 digits" });
-
-    if (password.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+    if (!mobileRegex.test(mobile)) {
+      return res.status(400).json({ message: "Mobile number must be 10 digits" });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
 
     const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: "Agent already exists with this email" });
+    if (existing) {
+      return res.status(400).json({ message: "Agent already exists with this email" });
+    }
 
-    const agent = new User({ name, email, mobile, password, role: "agent" });
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const agent = new User({ name, email, mobile, password: hashedPassword, role: "agent" });
     await agent.save();
 
-    res.status(201).json({ message: "Agent created successfully", agent });
+    res.status(201).json({ message: "Agent created successfully", agent: { ...agent._doc, password: undefined } });
   } catch (err) {
     console.error("Error creating agent:", err);
     res.status(500).json({ message: "Server error, please try again later" });
@@ -49,8 +63,15 @@ export const createAgent = async (req, res) => {
 // Update agent data
 export const updateAgent = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid agent ID" });
+
     const { name, email, mobile } = req.body;
-    const agent = await User.findByIdAndUpdate(req.params.id, { name, email, mobile }, { new: true });
+    const agent = await User.findByIdAndUpdate(
+      req.params.id,
+      { name, email, mobile },
+      { new: true, runValidators: true }
+    ).select("-password");
+
     if (!agent) return res.status(404).json({ message: "Agent not found" });
     res.json({ message: "Agent updated successfully", agent });
   } catch (err) {
@@ -61,8 +82,11 @@ export const updateAgent = async (req, res) => {
 // Delete agent
 export const deleteAgent = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid agent ID" });
+
     const agent = await User.findByIdAndDelete(req.params.id);
     if (!agent) return res.status(404).json({ message: "Agent not found" });
+
     res.json({ message: "Agent deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
@@ -87,7 +111,7 @@ export const uploadCSV = async (req, res) => {
         const missing = requiredHeaders.filter((h) => !headers.includes(h));
         if (missing.length) {
           stream.destroy();
-          fs.unlinkSync(req.file.path);
+          fs.unlink(req.file.path, () => {});
           return res.status(400).json({ message: `Invalid CSV format. Missing headers: ${missing.join(", ")}` });
         }
         headersValidated = true;
@@ -95,9 +119,7 @@ export const uploadCSV = async (req, res) => {
       .on("data", (row) => {
         if (!headersValidated) return;
         if (!row.firstName || !row.phone) return;
-        const phoneRegex = /^[0-9]{10}$/;
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!phoneRegex.test(row.phone)) return;
+        if (!mobileRegex.test(row.phone)) return;
         if (row.email && !emailRegex.test(row.email)) return;
 
         results.push({
@@ -108,7 +130,7 @@ export const uploadCSV = async (req, res) => {
         });
       })
       .on("end", async () => {
-        fs.unlinkSync(req.file.path);
+        fs.unlink(req.file.path, () => {});
         if (!results.length) return res.status(400).json({ message: "No valid rows in CSV" });
 
         const distributed = results.map((item, index) => ({
@@ -118,16 +140,15 @@ export const uploadCSV = async (req, res) => {
         }));
 
         const inserted = await AgentList.insertMany(distributed);
-
         res.json({ message: "CSV uploaded & distributed successfully", uploads: inserted });
       })
       .on("error", (err) => {
-        fs.unlinkSync(req.file.path);
+        fs.unlink(req.file.path, () => {});
         console.error("CSV stream error:", err);
         if (!res.headersSent) res.status(500).json({ message: "CSV parsing error" });
       });
   } catch (err) {
-    fs.unlinkSync(req.file.path);
+    fs.unlink(req.file.path, () => {});
     console.error("CSV upload error:", err);
     if (!res.headersSent) res.status(500).json({ message: "Server error" });
   }
@@ -146,6 +167,8 @@ export const getAllUploads = async (req, res) => {
 // Get leads for a specific agent
 export const getAgentUploads = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid agent ID" });
+
     const entries = await AgentList.find({ agent: req.params.id });
     res.json({ entries });
   } catch (err) {
@@ -156,8 +179,11 @@ export const getAgentUploads = async (req, res) => {
 // Delete a lead
 export const deleteUpload = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid lead ID" });
+
     const upload = await AgentList.findByIdAndDelete(req.params.id);
     if (!upload) return res.status(404).json({ message: "Upload not found" });
+
     res.json({ message: "Upload deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
@@ -167,10 +193,16 @@ export const deleteUpload = async (req, res) => {
 // Update lead status
 export const updateLeadStatus = async (req, res) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid lead ID" });
+
     const { status } = req.body;
-    if (!["active", "inactive"].includes(status)) return res.status(400).json({ message: "Invalid status" });
+    if (!["active", "inactive"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
     const lead = await AgentList.findByIdAndUpdate(req.params.id, { status }, { new: true });
     if (!lead) return res.status(404).json({ message: "Lead not found" });
+
     res.json({ message: "Status updated successfully", lead });
   } catch (err) {
     res.status(500).json({ message: "Server error" });

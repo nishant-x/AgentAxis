@@ -83,50 +83,49 @@ export default function AdminDashboard() {
  
   // Add or update agent 
   const saveAgent = async () => {
-  const { name, email, mobile, password } = newAgent;
+    const { name, email, mobile, password } = newAgent;
 
-  // VALIDATION 
-  if (!name || name.trim().length < 3) 
-    return toast.error("Name must be at least 3 characters");
+    // VALIDATION 
+    if (!name || name.trim().length < 3) 
+      return toast.error("Name must be at least 3 characters");
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email || !emailRegex.test(email)) 
-    return toast.error("Enter a valid email");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) 
+      return toast.error("Enter a valid email");
 
-  const mobileRegex = /^[0-9]{10}$/;
-  if (!mobile || !mobileRegex.test(mobile)) 
-    return toast.error("Enter a valid 10-digit mobile number");
+    const mobileRegex = /^[0-9]{10}$/;
+    if (!mobile || !mobileRegex.test(mobile)) 
+      return toast.error("Enter a valid 10-digit mobile number");
 
-  if (!editAgentId) { 
-    if (!password || password.length < 6) 
-      return toast.error("Password must be at least 6 characters");
-  }
+    if (!editAgentId) { 
+      if (!password || password.length < 6) 
+        return toast.error("Password must be at least 6 characters");
+    }
 
-  //API CALL
-  const url = editAgentId
-    ? `${BACKEND}/api/admin/agents/${editAgentId}`
-    : `${BACKEND}/api/admin/newagent`;
-  const method = editAgentId ? "PUT" : "POST";
+    // API CALL
+    const url = editAgentId
+      ? `${BACKEND}/api/admin/agents/${editAgentId}`
+      : `${BACKEND}/api/admin/newagent`;
+    const method = editAgentId ? "PUT" : "POST";
 
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify(newAgent),
-    });
-    const data = await res.json();
-    if (!res.ok) return toast.error(data.message || "Failed to save agent");
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newAgent),
+      });
+      const data = await res.json();
+      if (!res.ok) return toast.error(data.message || "Failed to save agent");
 
-    toast.success(editAgentId ? "Agent updated ✅" : "Agent added ✅");
-    setNewAgent({ name: "", email: "", mobile: "", password: "" });
-    setEditAgentId(null);
-    fetchAgents();
-  } catch {
-    toast.error("Network error while saving agent");
-  }
+      toast.success(editAgentId ? "Agent updated ✅" : "Agent added ✅");
+      setNewAgent({ name: "", email: "", mobile: "", password: "" });
+      setEditAgentId(null);
+      fetchAgents();
+    } catch {
+      toast.error("Network error while saving agent");
+    }
   };
 
- 
   // Edit agent 
   const editAgent = (agent) => {
     setEditAgentId(agent._id);
@@ -150,18 +149,25 @@ export default function AdminDashboard() {
     }
   };
  
-  // CSV upload 
+  // File change validation (CSV, XLSX, XLS only)
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile && !selectedFile.name.endsWith(".csv")) {
-      toast.error("Please upload a valid CSV file");
-      return;
+    if (selectedFile) {
+      const allowedExtensions = [".csv", ".xlsx", ".xls"];
+      const isValid = allowedExtensions.some(ext => selectedFile.name.toLowerCase().endsWith(ext));
+      if (!isValid) {
+        toast.error("Please upload a valid file (.csv, .xlsx, .xls only)");
+        e.target.value = ""; // reset file input
+        setFile(null);
+        return;
+      }
+      setFile(selectedFile);
     }
-    setFile(selectedFile);
   };
 
+  // Upload CSV/XLSX/XLS 
   const uploadCSV = async () => {
-    if (!file) return toast.error("Please select a CSV file");
+    if (!file) return toast.error("Please select a file");
     setUploadingCSV(true);
     const formData = new FormData();
     formData.append("file", file);
@@ -173,17 +179,15 @@ export default function AdminDashboard() {
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok)
-      {
-          return toast.error(data.message || "Failed to upload CSV");
+      if (!res.ok) {
+        return toast.error(data.message || "Failed to upload file");
       } 
-      toast.success("CSV uploaded & distributed ✅");
+      toast.success("File uploaded & distributed ✅");
       setFile(null);
       fetchUploads();
     } catch {
-      toast.error("Network error while uploading CSV");
+      toast.error("Network error while uploading file");
     } finally {
-      
       setUploadingCSV(false);
     }
   };
@@ -315,11 +319,11 @@ export default function AdminDashboard() {
           </ul>}
         </div>
 
-        {/* CSV Upload & Leads */}
+        {/* CSV/XLS Upload & Leads */}
         <div id="uploads-section" className="bg-white p-6 rounded-2xl shadow mb-8">
-          <h2 className="text-xl font-semibold mb-4">Upload CSV & Manage Leads</h2>
-          <input type="file" accept=".csv" onChange={handleFileChange} className="mb-4" />
-          <button onClick={uploadCSV} className="py-2 px-4 bg-indigo-600 text-white rounded">{uploadingCSV ? "Uploading..." : "Upload CSV"}</button>
+          <h2 className="text-xl font-semibold mb-4">Upload File & Manage Leads</h2>
+          <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="mb-4" />
+          <button onClick={uploadCSV} className="py-2 px-4 bg-indigo-600 text-white rounded">{uploadingCSV ? "Uploading..." : "Upload File"}</button>
 
           <input type="text" placeholder="Search leads..." value={searchLead} onChange={(e) => setSearchLead(e.target.value)} className="mt-4 p-2 border rounded w-full" />
 

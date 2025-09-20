@@ -36,22 +36,24 @@
   - Email: `jhadenishant@gmail.com`  
   - Password: `Nishant@123`  
 
-## Installation
+---
 
-1. Clone the repository:  
-   ```bash
-   git clone - https://github.com/nishant-x/AgentAxis.git
-   cd agentaxis
+## Installation & Setup
 
-## .env file description
-# Frontend
-VITE_BACKEND_URL = http://localhost:5000
+### 1. Clone the Repository
+```bash
+git clone https://github.com/nishant-x/AgentAxis.git
+cd AgentAxis
+2. Backend Setup
+bash
+Copy code
+cd Backend
+npm install
+Create a .env file inside the Backend folder with the following:
 
+env
+Copy code
 # Backend port
-PORT=5000
-
-# Frontend URL for CORS
-VITE_FRONTEND_URL=# Backend port
 PORT=5000
 
 # Frontend URL for CORS
@@ -62,8 +64,26 @@ JWT_SECRET=your_jwt_secret_here
 
 # MongoDB connection string
 MONGODB_URL=your_mongodb_connection_string_here
+Start the backend server:
 
-## Frontend URL
-https://agent-axis-rouge.vercel.app/
+bash
+Copy code
+npm run dev
+Backend will run at: http://localhost:5000
 
+3. Frontend Setup
+bash
+Copy code
+cd ../Frontend
+npm install
+Create a .env file inside the Frontend folder with:
 
+env
+Copy code
+VITE_BACKEND_URL=http://localhost:5000
+Start the frontend app:
+
+bash
+Copy code
+npm run dev
+Frontend will run at: http://localhost:5173
