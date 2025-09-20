@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const agentListSchema = new mongoose.Schema(
   {
@@ -16,5 +16,6 @@ const agentListSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports =
-  mongoose.models.AgentList || mongoose.model("AgentList", agentListSchema);
+const AgentList = mongoose.models.AgentList || mongoose.model("AgentList", agentListSchema);
+
+export default AgentList;
