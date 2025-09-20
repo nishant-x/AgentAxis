@@ -9,4 +9,4 @@ router.use(authMiddleware);
 router.get("/dashboard", agentDashboardController.getDashboard);
 router.patch("/lead/:id/status", agentDashboardController.updateLeadStatus);
 
-module.exports = router;
+export default router;
