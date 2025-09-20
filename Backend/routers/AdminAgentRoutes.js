@@ -1,3 +1,4 @@
+// AdminAgentRoutes.js
 import express from "express";
 import multer from "multer";
 import {
@@ -10,18 +11,18 @@ import {
   getAgentUploads,
   deleteUpload,
   updateLeadStatus,
-} from "../controllers/AdminAgentController.js"; // Make sure controller also uses ES exports
+} from "../controllers/AdminAgentController.js"; // ES module imports
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
-// Agent Management Routes
+// -------------------- AGENT MANAGEMENT --------------------
 router.get("/agents", getAllAgents);
 router.post("/newagent", createAgent);
 router.put("/agents/:id", updateAgent);
 router.delete("/agents/:id", deleteAgent);
 
-// CSV Management Routes
+// -------------------- CSV & LEADS --------------------
 router.post("/upload", upload.single("file"), uploadCSV);
 router.get("/uploads", getAllUploads);
 router.get("/uploads/agent/:id", getAgentUploads);
