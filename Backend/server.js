@@ -14,9 +14,23 @@ import agentRouter from "./routers/agentrouter.js";
 // Initialize Express app
 const app = express();
 
+// Allowed origins
+const allowedOrigins = [
+  "https://agent-axis-rouge.vercel.app",
+  "http://localhost:5173",
+];
+
 // CORS configuration
 const corsOptions = {
-  origin: process.env.VITE_FRONTEND_URL || "https://agent-axis-rouge.vercel.app/" || "http://localhost:5173",
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("CORS not allowed by server"));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
 };
