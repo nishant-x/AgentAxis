@@ -9,8 +9,7 @@ dotenv.config();
 // Import routes
 import authRoutes from "./routers/authRoutes.js";
 import AdminAgentRoutes from "./routers/AdminAgentRoutes.js";
-import agentrouter from './routers/agentrouter.js'
-// import uploadRoutes from "./routers/upload.js";
+import agentRouter from "./routers/agentrouter.js";
 
 // Initialize Express app
 const app = express();
@@ -30,8 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 // Base routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", AdminAgentRoutes);
-app.use("/api/agents" , agentrouter)
-// app.use("/api/upload", uploadRoutes);
+app.use("/api/agents", agentRouter);
 
 // MongoDB connection
 const MONGODB_URL = process.env.MONGODB_URL;
@@ -40,20 +38,18 @@ if (!MONGODB_URL) {
   process.exit(1);
 }
 
+// Connect to MongoDB
 mongoose
-  .connect(MONGODB_URL, { 
-    useNewUrlParser: true, 
-    useUnifiedTopology: true 
-  })
-  .then(() => console.log("Connected to MongoDB"))
+  .connect(MONGODB_URL)
+  .then(() => console.log("✅ Connected to MongoDB"))
   .catch((error) => {
-    console.error("MongoDB connection error:", error.message);
+    console.error("❌ MongoDB connection error:", error.message);
     process.exit(1);
   });
 
 // Root route (optional)
 app.get("/", (req, res) => {
-  res.send("MERN backend is running 🚀");
+  res.send("🚀 MERN backend is running");
 });
 
 // Start server
