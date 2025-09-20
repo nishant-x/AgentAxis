@@ -63,4 +63,7 @@ JWT_SECRET=your_jwt_secret_here
 # MongoDB connection string
 MONGODB_URL=your_mongodb_connection_string_here
 
+## Frontend URL
+https://agent-axis-rouge.vercel.app/
+
 
