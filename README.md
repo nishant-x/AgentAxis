@@ -42,3 +42,25 @@
    ```bash
    git clone - https://github.com/nishant-x/AgentAxis.git
    cd agentaxis
+
+## .env file description
+# Frontend
+VITE_BACKEND_URL = http://localhost:5000
+
+# Backend port
+PORT=5000
+
+# Frontend URL for CORS
+VITE_FRONTEND_URL=# Backend port
+PORT=5000
+
+# Frontend URL for CORS
+VITE_FRONTEND_URL=http://localhost:5173
+
+# JWT secret for authentication
+JWT_SECRET=your_jwt_secret_here
+
+# MongoDB connection string
+MONGODB_URL=your_mongodb_connection_string_here
+
+
