@@ -1,12 +1,17 @@
-// routes/agentDashboardRoutes.js
-const express = require("express");
-const router = express.Router();
-const authMiddleware = require("../middleware/auth");
-const agentDashboardController = require("../controllers/agentController");
+import express from "express";
+import authMiddleware from "../middleware/auth.js";
+import {
+  getDashboard,
+  updateLeadStatus,
+} from "../controllers/agentController.js";
 
+const router = express.Router();
+
+// Apply authentication middleware
 router.use(authMiddleware);
 
-router.get("/dashboard", agentDashboardController.getDashboard);
-router.patch("/lead/:id/status", agentDashboardController.updateLeadStatus);
+// Agent dashboard routes
+router.get("/dashboard", getDashboard);
+router.patch("/lead/:id/status", updateLeadStatus);
 
 export default router;
