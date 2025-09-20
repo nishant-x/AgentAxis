@@ -1,10 +1,10 @@
-const User = require("../models/User");
-const AgentList = require("../models/AgentList");
+import User from "../models/User.js";
+import AgentList from "../models/AgentList.js";
 
 // Get agent dashboard (leads)
-exports.getDashboard = async (req, res) => {
+export const getDashboard = async (req, res) => {
   try {
-    if (req.user.role !== "agent") 
+    if (req.user.role !== "agent")
       return res.status(403).json({ message: "Access denied" });
 
     const agent = await User.findById(req.user.userId).select("name");
@@ -22,7 +22,7 @@ exports.getDashboard = async (req, res) => {
 };
 
 // Update lead status
-exports.updateLeadStatus = async (req, res) => {
+export const updateLeadStatus = async (req, res) => {
   try {
     const { status } = req.body;
     if (!["active", "inactive"].includes(status)) {
