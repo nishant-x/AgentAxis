@@ -16,7 +16,7 @@ const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.VITE_FRONTEND_URL || "http://localhost:5173",
+  origin: process.env.VITE_FRONTEND_URL || "https://agent-axis-rouge.vercel.app/" || "http://localhost:5173",
   credentials: true,
   optionsSuccessStatus: 200,
 };
