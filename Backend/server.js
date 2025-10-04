@@ -10,6 +10,7 @@ dotenv.config();
 import authRoutes from "./routers/authRoutes.js";
 import AdminAgentRoutes from "./routers/AdminAgentRoutes.js";
 import agentRouter from "./routers/agentrouter.js";
+import superAdminRoutes from "./routers/superAdminRoutes.js"; // <-- Added SuperAdmin routes
 
 // Initialize Express app
 const app = express();
@@ -44,6 +45,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", AdminAgentRoutes);
 app.use("/api/agents", agentRouter);
+app.use("/api/superadmin", superAdminRoutes);
 
 // MongoDB connection
 const MONGODB_URL = process.env.MONGODB_URL;

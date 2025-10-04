@@ -33,6 +33,7 @@ export default function LoginForm() {
       });
 
       const data = await res.json();
+
       if (!res.ok) {
         setError(data.message || "Login failed");
         toast.error(data.message || "Login failed ❌");
@@ -42,12 +43,18 @@ export default function LoginForm() {
         toast.success("Login successful ✅");
 
         // Redirect based on role
-        if (data.user.role === "admin") {
-          navigate("/admin-dashboard");
-        } else if (data.user.role === "agent") {
-          navigate("/agent-dashboard");
-        } else {
-          navigate("/"); // fallback
+        switch (data.user.role) {
+          case "superadmin":
+            navigate("/superadmin-dashboard");
+            break;
+          case "admin":
+            navigate("/admin-dashboard");
+            break;
+          case "agent":
+            navigate("/agent-dashboard");
+            break;
+          default:
+            navigate("/"); // fallback
         }
       }
     } catch (err) {
@@ -64,6 +71,9 @@ export default function LoginForm() {
 
   const fillUser = () =>
     setForm({ email: "jhadenishant@gmail.com", password: "Nishant@123" });
+
+  const fillSuperAdmin = () =>
+    setForm({ email: "superadmin@example.com", password: "SuperAdmin@123" });
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -153,6 +163,14 @@ export default function LoginForm() {
                 {loading ? "Signing in..." : "Sign in"}
               </button>
 
+               <button
+                type="button"
+                onClick={fillSuperAdmin}
+                className="w-full py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                Prefill demo superadmin
+              </button>
+
               <button
                 type="button"
                 onClick={fillAdmin}
@@ -168,6 +186,8 @@ export default function LoginForm() {
               >
                 Prefill demo user
               </button>
+
+             
             </div>
           </form>
 

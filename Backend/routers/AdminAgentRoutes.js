@@ -11,13 +11,14 @@ import {
   getAgentUploads,
   deleteUpload,
   updateLeadStatus,
-} from "../controllers/AdminAgentController.js"; // ES module imports
+  getAdminStats,
+} from "../controllers/AdminAgentController.js"; // module imports
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
 // -------------------- AGENT MANAGEMENT --------------------
-router.get("/agents", getAllAgents);
+router.post("/agents", getAllAgents);
 router.post("/newagent", createAgent);
 router.put("/agents/:id", updateAgent);
 router.delete("/agents/:id", deleteAgent);
@@ -28,5 +29,6 @@ router.get("/uploads", getAllUploads);
 router.get("/uploads/agent/:id", getAgentUploads);
 router.delete("/uploads/:id", deleteUpload);
 router.put("/uploads/:id/status", updateLeadStatus);
+router.get("/stats", getAdminStats);
 
 export default router;

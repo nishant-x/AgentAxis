@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
-// component for lead details
+// Component for viewing lead details
 function LeadModal({ lead, onClose }) {
   if (!lead) return null;
   return (
@@ -20,8 +20,7 @@ function LeadModal({ lead, onClose }) {
   );
 }
 
-export default function AdminDashboard() { 
-  // State variables 
+export default function AdminDashboard() {
   const [agents, setAgents] = useState([]);
   const [newAgent, setNewAgent] = useState({ name: "", email: "", mobile: "", password: "" });
   const [editAgentId, setEditAgentId] = useState(null);
@@ -34,37 +33,79 @@ export default function AdminDashboard() {
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [loadingUploads, setLoadingUploads] = useState(false);
   const [uploadingCSV, setUploadingCSV] = useState(false);
+  const [stats, setStats] = useState({ agentCount: 0, leadCount: 0 }); // ✅ stats state
 
   const BACKEND = import.meta.env.VITE_BACKEND_URL;
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
- 
-  // Fetch all agents 
+
+  // Fetch agents
   const fetchAgents = async () => {
     setLoadingAgents(true);
     try {
+      const admin = JSON.parse(localStorage.getItem("user"));
+      const adminId = admin?.id;
+
+      if (!adminId) {
+        toast.error("Admin ID not found. Please log in again.");
+        setLoadingAgents(false);
+        return;
+      }
+
       const res = await fetch(`${BACKEND}/api/admin/agents`, {
-        headers: { Authorization: `Bearer ${token}` },
+        method: "POST", 
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ adminId }),
       });
+
       const data = await res.json();
       if (!res.ok) return toast.error(data.message || "Failed to fetch agents");
+
       setAgents(data.agents || []);
-    } catch {
+    } catch (err) {
+      console.error("Error fetching agents:", err);
       toast.error("Network error while fetching agents");
     } finally {
       setLoadingAgents(false);
     }
   };
- 
-  // Fetch all uploads 
-  const fetchUploads = async () => {
-    setLoadingUploads(true);
+
+  // Fetch total agents and leads
+  const fetchStats = async () => {
     try {
-      const res = await fetch(`${BACKEND}/api/admin/uploads`, {
+      const adminId = JSON.parse(localStorage.getItem("user"))?.id;
+      if (!adminId) return toast.error("Admin ID not found");
+
+      const res = await fetch(`${BACKEND}/api/admin/stats?adminId=${adminId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
+      if (!res.ok) return toast.error(data.message || "Failed to fetch stats");
+
+      setStats({ agentCount: data.agentCount || 0, leadCount: data.leadCount || 0 });
+    } catch (err) {
+      console.error("Error fetching stats:", err);
+      toast.error("Network error while fetching stats");
+    }
+  };
+
+  // Fetch uploads
+  const fetchUploads = async () => {
+    setLoadingUploads(true);
+    try {
+      const adminId = JSON.parse(localStorage.getItem("user"))?.id; 
+      if (!adminId) return toast.error("Admin ID not found");
+
+      const res = await fetch(`${BACKEND}/api/admin/uploads?adminId=${adminId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
       if (!res.ok) return toast.error(data.message || "Failed to fetch uploads");
+
       setUploads(data.uploads || []);
     } catch {
       toast.error("Network error while fetching uploads");
@@ -76,44 +117,52 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAgents();
     fetchUploads();
+    fetchStats(); // ✅ fetch stats on mount
   }, []);
- 
-  // Agent form input change 
+
   const handleAgentChange = (e) => setNewAgent({ ...newAgent, [e.target.name]: e.target.value });
- 
-  // Add or update agent 
+
+  // Add or update agent
   const saveAgent = async () => {
     const { name, email, mobile, password } = newAgent;
 
-    // VALIDATION 
-    if (!name || name.trim().length < 3) 
+    if (!name || name.trim().length < 3)
       return toast.error("Name must be at least 3 characters");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email)) 
+    if (!email || !emailRegex.test(email))
       return toast.error("Enter a valid email");
 
     const mobileRegex = /^[0-9]{10}$/;
-    if (!mobile || !mobileRegex.test(mobile)) 
+    if (!mobile || !mobileRegex.test(mobile))
       return toast.error("Enter a valid 10-digit mobile number");
 
-    if (!editAgentId) { 
-      if (!password || password.length < 6) 
-        return toast.error("Password must be at least 6 characters");
+    if (!editAgentId && (!password || password.length < 6))
+      return toast.error("Password must be at least 6 characters");
+
+    const admin = JSON.parse(localStorage.getItem("user")); 
+    const adminId = admin?.id;
+
+    if (!adminId) {
+      return toast.error("Admin ID missing. Please log in again.");
     }
 
-    // API CALL
     const url = editAgentId
       ? `${BACKEND}/api/admin/agents/${editAgentId}`
       : `${BACKEND}/api/admin/newagent`;
+
     const method = editAgentId ? "PUT" : "POST";
 
     try {
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(newAgent),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ...newAgent, adminId }),
       });
+
       const data = await res.json();
       if (!res.ok) return toast.error(data.message || "Failed to save agent");
 
@@ -121,18 +170,18 @@ export default function AdminDashboard() {
       setNewAgent({ name: "", email: "", mobile: "", password: "" });
       setEditAgentId(null);
       fetchAgents();
-    } catch {
+      fetchStats(); // ✅ refresh stats after adding/updating agent
+    } catch (err) {
+      console.error("Error saving agent:", err);
       toast.error("Network error while saving agent");
     }
   };
 
-  // Edit agent 
   const editAgent = (agent) => {
     setEditAgentId(agent._id);
     setNewAgent({ name: agent.name, email: agent.email, mobile: agent.mobile, password: "" });
   };
- 
-  // Delete agent 
+
   const deleteAgent = async (id) => {
     if (!confirm("Are you sure you want to delete this agent?")) return;
     try {
@@ -144,12 +193,12 @@ export default function AdminDashboard() {
       if (!res.ok) return toast.error(data.message || "Failed to delete agent");
       toast.success("Agent deleted ✅");
       fetchAgents();
+      fetchStats(); // ✅ refresh stats after deleting agent
     } catch {
       toast.error("Network error while deleting agent");
     }
   };
- 
-  // File change validation (CSV, XLSX, XLS only)
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
@@ -157,7 +206,7 @@ export default function AdminDashboard() {
       const isValid = allowedExtensions.some(ext => selectedFile.name.toLowerCase().endsWith(ext));
       if (!isValid) {
         toast.error("Please upload a valid file (.csv, .xlsx, .xls only)");
-        e.target.value = ""; // reset file input
+        e.target.value = "";
         setFile(null);
         return;
       }
@@ -165,34 +214,45 @@ export default function AdminDashboard() {
     }
   };
 
-  // Upload CSV/XLSX/XLS 
   const uploadCSV = async () => {
     if (!file) return toast.error("Please select a file");
     setUploadingCSV(true);
-    const formData = new FormData();
-    formData.append("file", file);
 
     try {
+      const admin = JSON.parse(localStorage.getItem("user"));
+      const adminId = admin?.id;
+
+      if (!adminId) {
+        toast.error("Admin ID not found. Please log in again.");
+        setUploadingCSV(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("adminId", adminId); 
+
       const res = await fetch(`${BACKEND}/api/admin/upload`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
+
       const data = await res.json();
-      if (!res.ok) {
-        return toast.error(data.message || "Failed to upload file");
-      } 
+      if (!res.ok) return toast.error(data.message || "Failed to upload file");
+
       toast.success("File uploaded & distributed ✅");
       setFile(null);
       fetchUploads();
-    } catch {
+      fetchStats(); // ✅ refresh stats after uploading CSV
+    } catch (err) {
+      console.error("CSV upload error:", err);
       toast.error("Network error while uploading file");
     } finally {
       setUploadingCSV(false);
     }
   };
- 
-  // Delete lead 
+
   const deleteUpload = async (id) => {
     if (!confirm("Are you sure you want to delete this lead?")) return;
     try {
@@ -204,12 +264,12 @@ export default function AdminDashboard() {
       if (!res.ok) return toast.error(data.message || "Failed to delete lead");
       toast.success("Lead deleted ✅");
       fetchUploads();
+      fetchStats(); // ✅ refresh stats after deleting lead
     } catch {
       toast.error("Network error while deleting lead");
     }
   };
- 
-  // Toggle lead status 
+
   const toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
@@ -223,31 +283,26 @@ export default function AdminDashboard() {
       toast.error("Network error while updating status");
     }
   };
- 
-  // Logout 
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     toast.success("Logged out successfully ✅");
     navigate("/");
   };
- 
-  // Group uploads by agent 
+
   const uploadsByAgent = uploads.reduce((acc, item) => {
     const agentName = item.agent?.name || "Unassigned";
     if (!acc[agentName]) acc[agentName] = [];
     acc[agentName].push(item);
     return acc;
   }, {});
- 
-  // Download CSV for agent 
+
   const downloadCSV = (agentName, entries) => {
     const csvContent = [
       ["First Name", "Phone", "Email", "Notes", "Status"],
       ...entries.map((e) => [e.firstName, e.phone, e.email || "", e.notes || "", e.status]),
-    ]
-      .map((e) => e.join(","))
-      .join("\n");
+    ].map((e) => e.join(",")).join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -255,11 +310,10 @@ export default function AdminDashboard() {
     link.download = `${agentName}_leads.csv`;
     link.click();
   };
- 
-  // Filter & Sort 
+
   const filteredAgents = agents
     .filter((a) => a.name.toLowerCase().includes(searchAgent.toLowerCase()))
-    .sort((a, b) => sortAgentAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name));
+    .sort((a, b) => (sortAgentAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)));
 
   const filteredUploadsByAgent = Object.fromEntries(
     Object.entries(uploadsByAgent).map(([agentName, entries]) => [
@@ -267,8 +321,7 @@ export default function AdminDashboard() {
       entries.filter((l) => l.firstName.toLowerCase().includes(searchLead.toLowerCase())),
     ])
   );
- 
-  // JSX 
+
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
@@ -282,9 +335,21 @@ export default function AdminDashboard() {
         </nav>
       </div>
 
-      {/* Main content */}
+      {/* Main Content */}
       <div className="flex-1 p-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Welcome, Admin!</h1>
+
+        {/* Stats Section ✅ */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg shadow text-center">
+            <h3 className="text-gray-500">Total Agents</h3>
+            <p className="text-2xl font-bold">{stats.agentCount}</p>
+          </div>
+          {/* <div className="bg-white p-4 rounded-lg shadow text-center">
+            <h3 className="text-gray-500">Total Leads</h3>
+            <p className="text-2xl font-bold">{stats.leadCount}</p>
+          </div> */}
+        </div>
 
         {/* Add/Edit Agent */}
         <div id="agents-section" className="bg-white p-6 rounded-2xl shadow mb-8">
@@ -298,28 +363,46 @@ export default function AdminDashboard() {
           <button onClick={saveAgent} className="mt-4 py-2 px-4 bg-indigo-600 text-white rounded">{editAgentId ? "Update Agent" : "Add Agent"}</button>
           {editAgentId && <button onClick={() => { setEditAgentId(null); setNewAgent({ name: "", email: "", mobile: "", password: "" }); }} className="ml-2 mt-4 py-2 px-4 bg-gray-400 text-white rounded">Cancel</button>}
 
-          {/* Search & Sort */}
           <div className="mt-6 flex justify-between items-center">
             <input type="text" placeholder="Search agents..." value={searchAgent} onChange={(e) => setSearchAgent(e.target.value)} className="p-2 border rounded" />
             <button onClick={() => setSortAgentAsc(!sortAgentAsc)} className="py-2 px-4 bg-gray-300 rounded">{sortAgentAsc ? "Sort Desc" : "Sort Asc"}</button>
           </div>
 
-          {/* Agents List */}
-          {loadingAgents ? <p className="mt-4">Loading agents...</p> :
-          <ul className="space-y-2 mt-4">
-            {filteredAgents.map(agent => (
-              <li key={agent._id} className="p-2 border rounded flex justify-between items-center">
-                <span>{agent.name} ({agent.email}) - {agent.mobile}</span>
-                <div className="space-x-2">
-                  <button onClick={() => editAgent(agent)} className="py-1 px-3 bg-yellow-500 text-white rounded">Edit</button>
-                  <button onClick={() => deleteAgent(agent._id)} className="py-1 px-3 bg-red-500 text-white rounded">Delete</button>
-                </div>
-              </li>
-            ))}
-          </ul>}
+          {/* Agents Table */}
+          {loadingAgents ? (
+            <p className="mt-4">Loading agents...</p>
+          ) : (
+            <div className="overflow-x-auto mt-4">
+              <table className="min-w-full border border-gray-200 text-sm text-left">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border px-3 py-2">#</th>
+                    <th className="border px-3 py-2">Name</th>
+                    <th className="border px-3 py-2">Email</th>
+                    <th className="border px-3 py-2">Mobile</th>
+                    <th className="border px-3 py-2 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAgents.map((agent, index) => (
+                    <tr key={agent._id} className="hover:bg-gray-50">
+                      <td className="border px-3 py-2">{index + 1}</td>
+                      <td className="border px-3 py-2">{agent.name}</td>
+                      <td className="border px-3 py-2">{agent.email}</td>
+                      <td className="border px-3 py-2">{agent.mobile}</td>
+                      <td className="border px-3 py-2 text-center space-x-2">
+                        <button onClick={() => editAgent(agent)} className="py-1 px-3 bg-yellow-500 text-white rounded">Edit</button>
+                        <button onClick={() => deleteAgent(agent._id)} className="py-1 px-3 bg-red-500 text-white rounded">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* CSV/XLS Upload & Leads */}
+        {/* Uploads Section */}
         <div id="uploads-section" className="bg-white p-6 rounded-2xl shadow mb-8">
           <h2 className="text-xl font-semibold mb-4">Upload File & Manage Leads</h2>
           <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="mb-4" />
@@ -328,39 +411,87 @@ export default function AdminDashboard() {
           <input type="text" placeholder="Search leads..." value={searchLead} onChange={(e) => setSearchLead(e.target.value)} className="mt-4 p-2 border rounded w-full" />
 
           <h3 className="text-lg font-semibold mt-6">Distributed Leads by Agent</h3>
-          {loadingUploads ? <p className="text-gray-500 mt-2">Loading leads...</p> :
-          Object.keys(filteredUploadsByAgent).length === 0 ? (
+          {loadingUploads ? (
+            <p className="text-gray-500 mt-2">Loading leads...</p>
+          ) : Object.keys(filteredUploadsByAgent).length === 0 ? (
             <p className="text-gray-500 mt-2">No leads uploaded yet.</p>
           ) : (
             Object.entries(filteredUploadsByAgent).map(([agentName, entries]) => (
-              <div key={agentName} className="mb-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-semibold">{agentName}</h4>
-                  <button onClick={() => downloadCSV(agentName, entries)} className="py-1 px-3 bg-green-500 text-white rounded">Download CSV</button>
+              <div key={agentName} className="mb-6 bg-white rounded-lg shadow p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-semibold text-gray-800">{agentName}</h3>
+                  <button
+                    onClick={() => downloadCSV(agentName, entries)}
+                    className="py-1 px-3 bg-green-500 text-white rounded hover:bg-green-600"
+                  >
+                    Download CSV
+                  </button>
                 </div>
-                <ul className="ml-4 mt-2 space-y-1">
-                  {entries.map(entry => (
-                    <li key={entry._id} className="p-2 border rounded flex justify-between items-center">
-                      <div onClick={() => setLeadModal(entry)} className="cursor-pointer">
-                        <strong>{entry.firstName}</strong> ({entry.phone}) - Status: 
-                        <span className={`ml-2 px-2 py-1 rounded ${entry.status === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                          {entry.status}
-                        </span>
-                      </div>
-                      <div className="space-x-2">
-                        <button onClick={() => toggleStatus(entry._id, entry.status)} className="py-1 px-3 bg-blue-500 text-white rounded">Toggle Status</button>
-                        <button onClick={() => deleteUpload(entry._id)} className="py-1 px-3 bg-red-500 text-white rounded">Delete</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border border-gray-200 text-sm text-left">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="border px-3 py-2">#</th>
+                        <th className="border px-3 py-2">First Name</th>
+                        <th className="border px-3 py-2">Phone</th>
+                        <th className="border px-3 py-2">Email</th>
+                        <th className="border px-3 py-2">Notes</th>
+                        <th className="border px-3 py-2">Status</th>
+                        <th className="border px-3 py-2 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entries.map((entry, index) => (
+                        <tr key={entry._id} className="hover:bg-gray-50">
+                          <td className="border px-3 py-2">{index + 1}</td>
+                          <td
+                            className="border px-3 py-2 cursor-pointer text-indigo-600"
+                            onClick={() => setLeadModal(entry)}
+                          >
+                            {entry.firstName}
+                          </td>
+                          <td className="border px-3 py-2">{entry.phone}</td>
+                          <td className="border px-3 py-2">{entry.email || "-"}</td>
+                          <td className="border px-3 py-2">{entry.notes || "-"}</td>
+                          <td className="border px-3 py-2">
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium ${
+                                entry.status === "active"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {entry.status}
+                            </span>
+                          </td>
+                          <td className="border px-3 py-2 text-center space-x-2">
+                            <button
+                              onClick={() => toggleStatus(entry._id, entry.status)}
+                              className="py-1 px-3 bg-blue-500 text-white rounded hover:bg-blue-600"
+                            >
+                              Toggle
+                            </button>
+                            <button
+                              onClick={() => deleteUpload(entry._id)}
+                              className="py-1 px-3 bg-red-500 text-white rounded hover:bg-red-600"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ))
           )}
         </div>
-
-        <LeadModal lead={leadModal} onClose={() => setLeadModal(null)} />
       </div>
+
+      {/* Lead Details Modal */}
+      {leadModal && <LeadModal lead={leadModal} onClose={() => setLeadModal(null)} />}
     </div>
   );
 }

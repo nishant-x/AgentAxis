@@ -21,8 +21,16 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["admin", "agent"],
+    enum: ["admin", "agent" , "superadmin"],
     default: "agent"
+  },
+
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // reference to the admin in same 'User' collection
+    required: function () {
+      return this.role === "agent"; // only required for agents
+    }
   }
 });
 
