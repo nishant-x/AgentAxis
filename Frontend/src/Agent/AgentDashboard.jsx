@@ -145,6 +145,11 @@ export default function AgentDashboard() {
           </span>
         </div>
 
+        {/* Lead Count */}
+        <div className="mb-4 text-gray-700 font-semibold">
+          Total Leads Assigned: {leads.length} | Showing: {filteredLeads.length} leads
+        </div>
+
         {/* Search, Filter & Sort */}
         <div className="mb-4 flex gap-4">
           <input
@@ -178,74 +183,75 @@ export default function AgentDashboard() {
         </div>
 
         {/* Leads Table */}
-        <div className="bg-white shadow rounded-xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Assigned Leads</h2>
-          {currentLeads.length === 0 ? (
-            <p className="text-gray-500">No leads assigned yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border p-3 text-left">#</th>
-                    <th className="border p-3 text-left">Name</th>
-                    <th className="border p-3 text-left">Phone</th>
-                    <th className="border p-3 text-left">Email</th>
-                    <th className="border p-3 text-left">Address</th>
-                    <th className="border p-3 text-left">Notes</th>
-                    <th className="border p-3 text-left">Status</th>
-                    <th className="border p-3 text-left">Actions</th>
+        <div className="bg-white shadow rounded-xl p-6 overflow-x-auto">
+          <table className="w-full border-collapse table-auto">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border p-3 text-left">#</th>
+                <th className="border p-3 text-left">Name</th>
+                <th className="border p-3 text-left">Phone</th>
+                <th className="border p-3 text-left">Email</th>
+                <th className="border p-3 text-left">Address</th>
+                <th className="border p-3 text-left">Notes</th>
+                <th className="border p-3 text-left">Status</th>
+                <th className="border p-3 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentLeads.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="text-center p-3 text-gray-500">
+                    No leads assigned yet.
+                  </td>
+                </tr>
+              ) : (
+                currentLeads.map((lead, i) => (
+                  <tr key={lead._id} className="hover:bg-gray-50 cursor-pointer">
+                    <td className="border p-3">{indexOfFirstLead + i + 1}</td>
+                    <td onClick={() => setSelectedLead(lead)} className="border p-3">{lead.firstName || "-"}</td>
+                    <td className="border p-3">{lead.phone || "-"}</td>
+                    <td className="border p-3">{lead.email || "-"}</td>
+                    <td className="border p-3">{lead.address || "-"}</td>
+                    <td className="border p-3">{lead.notes || "-"}</td>
+                    <td className="border p-3">{lead.status}</td>
+                    <td className="border p-3 space-x-2">
+                      <button
+                        onClick={() => handleStatusChange(lead._id, "active")}
+                        className={`py-1 px-3 rounded text-white ${
+                          lead.status === "active" ? "bg-green-700" : "bg-green-500"
+                        }`}
+                      >
+                        Active
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(lead._id, "inactive")}
+                        className={`py-1 px-3 rounded text-white ${
+                          lead.status === "inactive" ? "bg-gray-700" : "bg-gray-500"
+                        }`}
+                      >
+                        Inactive
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {currentLeads.map((lead, i) => (
-                    <tr key={lead._id} className="hover:bg-gray-50 cursor-pointer">
-                      <td className="border p-3">{indexOfFirstLead + i + 1}</td>
-                      <td onClick={() => setSelectedLead(lead)} className="border p-3">{lead.firstName || "-"}</td>
-                      <td className="border p-3">{lead.phone || "-"}</td>
-                      <td className="border p-3">{lead.email || "-"}</td>
-                      <td className="border p-3">{lead.address || "-"}</td>
-                      <td className="border p-3">{lead.notes || "-"}</td>
-                      <td className="border p-3">{lead.status}</td>
-                      <td className="border p-3 space-x-2">
-                        <button
-                          onClick={() => handleStatusChange(lead._id, "active")}
-                          className={`py-1 px-3 rounded text-white ${
-                            lead.status === "active" ? "bg-green-700" : "bg-green-500"
-                          }`}
-                        >
-                          Active
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(lead._id, "inactive")}
-                          className={`py-1 px-3 rounded text-white ${
-                            lead.status === "inactive" ? "bg-gray-700" : "bg-gray-500"
-                          }`}
-                        >
-                          Inactive
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="mt-4 flex gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={`px-3 py-1 rounded ${
-                        currentPage === i + 1 ? "bg-indigo-600 text-white" : "bg-gray-200"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
+                ))
               )}
+            </tbody>
+          </table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex gap-2">
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`px-3 py-1 rounded ${
+                    currentPage === i + 1 ? "bg-indigo-600 text-white" : "bg-gray-200"
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
             </div>
           )}
         </div>

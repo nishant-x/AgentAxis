@@ -63,15 +63,12 @@ export const createAgent = async (req, res) => {
       return res.status(400).json({ message: "Agent already exists with this email" });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     // ✅ Create agent with adminId
     const agent = new User({
       name,
       email,
       mobile,
-      password: hashedPassword,
+      password: password,
       role: "agent",
       createdBy: adminId, // store which admin created this agent
     });
