@@ -65,6 +65,7 @@ export default function AdminDashboard() {
       if (!res.ok) return toast.error(data.message || "Failed to fetch agents");
 
       setAgents(data.agents || []);
+      setStats(prev => ({ ...prev, agentCount: data.agents.length || 0 }));
     } catch (err) {
       console.error("Error fetching agents:", err);
       toast.error("Network error while fetching agents");
@@ -73,26 +74,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Fetch total agents and leads
-  const fetchStats = async () => {
-    try {
-      const adminId = JSON.parse(localStorage.getItem("user"))?.id;
-      if (!adminId) return toast.error("Admin ID not found");
-
-      const res = await fetch(`${BACKEND}/api/admin/stats?adminId=${adminId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) return toast.error(data.message || "Failed to fetch stats");
-
-      setStats({ agentCount: data.agentCount || 0, leadCount: data.leadCount || 0 });
-    } catch (err) {
-      console.error("Error fetching stats:", err);
-      toast.error("Network error while fetching stats");
-    }
-  };
-
-  // Fetch uploads
+  // Fetch uploads and total leads
   const fetchUploads = async () => {
     setLoadingUploads(true);
     try {
@@ -107,6 +89,7 @@ export default function AdminDashboard() {
       if (!res.ok) return toast.error(data.message || "Failed to fetch uploads");
 
       setUploads(data.uploads || []);
+      setStats(prev => ({ ...prev, leadCount: data.counts?.totalLeads || 0 }));
     } catch {
       toast.error("Network error while fetching uploads");
     } finally {
@@ -117,7 +100,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAgents();
     fetchUploads();
-    fetchStats(); // ✅ fetch stats on mount
   }, []);
 
   const handleAgentChange = (e) => setNewAgent({ ...newAgent, [e.target.name]: e.target.value });
@@ -126,26 +108,16 @@ export default function AdminDashboard() {
   const saveAgent = async () => {
     const { name, email, mobile, password } = newAgent;
 
-    if (!name || name.trim().length < 3)
-      return toast.error("Name must be at least 3 characters");
-
+    if (!name || name.trim().length < 3) return toast.error("Name must be at least 3 characters");
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email))
-      return toast.error("Enter a valid email");
-
+    if (!email || !emailRegex.test(email)) return toast.error("Enter a valid email");
     const mobileRegex = /^[0-9]{10}$/;
-    if (!mobile || !mobileRegex.test(mobile))
-      return toast.error("Enter a valid 10-digit mobile number");
-
-    if (!editAgentId && (!password || password.length < 6))
-      return toast.error("Password must be at least 6 characters");
+    if (!mobile || !mobileRegex.test(mobile)) return toast.error("Enter a valid 10-digit mobile number");
+    if (!editAgentId && (!password || password.length < 6)) return toast.error("Password must be at least 6 characters");
 
     const admin = JSON.parse(localStorage.getItem("user")); 
     const adminId = admin?.id;
-
-    if (!adminId) {
-      return toast.error("Admin ID missing. Please log in again.");
-    }
+    if (!adminId) return toast.error("Admin ID missing. Please log in again.");
 
     const url = editAgentId
       ? `${BACKEND}/api/admin/agents/${editAgentId}`
@@ -170,7 +142,6 @@ export default function AdminDashboard() {
       setNewAgent({ name: "", email: "", mobile: "", password: "" });
       setEditAgentId(null);
       fetchAgents();
-      fetchStats(); // ✅ refresh stats after adding/updating agent
     } catch (err) {
       console.error("Error saving agent:", err);
       toast.error("Network error while saving agent");
@@ -193,7 +164,7 @@ export default function AdminDashboard() {
       if (!res.ok) return toast.error(data.message || "Failed to delete agent");
       toast.success("Agent deleted ✅");
       fetchAgents();
-      fetchStats(); // ✅ refresh stats after deleting agent
+      fetchUploads(); // Refresh uploads & lead count
     } catch {
       toast.error("Network error while deleting agent");
     }
@@ -201,17 +172,17 @@ export default function AdminDashboard() {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      const allowedExtensions = [".csv", ".xlsx", ".xls"];
-      const isValid = allowedExtensions.some(ext => selectedFile.name.toLowerCase().endsWith(ext));
-      if (!isValid) {
-        toast.error("Please upload a valid file (.csv, .xlsx, .xls only)");
-        e.target.value = "";
-        setFile(null);
-        return;
-      }
-      setFile(selectedFile);
+    if (!selectedFile) return setFile(null);
+
+    const allowedExtensions = [".csv", ".xlsx", ".xls"];
+    const isValid = allowedExtensions.some(ext => selectedFile.name.toLowerCase().endsWith(ext));
+    if (!isValid) {
+      toast.error("Please upload a valid file (.csv, .xlsx, .xls only)");
+      e.target.value = "";
+      setFile(null);
+      return;
     }
+    setFile(selectedFile);
   };
 
   const uploadCSV = async () => {
@@ -219,14 +190,8 @@ export default function AdminDashboard() {
     setUploadingCSV(true);
 
     try {
-      const admin = JSON.parse(localStorage.getItem("user"));
-      const adminId = admin?.id;
-
-      if (!adminId) {
-        toast.error("Admin ID not found. Please log in again.");
-        setUploadingCSV(false);
-        return;
-      }
+      const adminId = JSON.parse(localStorage.getItem("user"))?.id;
+      if (!adminId) return toast.error("Admin ID not found");
 
       const formData = new FormData();
       formData.append("file", file);
@@ -244,7 +209,6 @@ export default function AdminDashboard() {
       toast.success("File uploaded & distributed ✅");
       setFile(null);
       fetchUploads();
-      fetchStats(); // ✅ refresh stats after uploading CSV
     } catch (err) {
       console.error("CSV upload error:", err);
       toast.error("Network error while uploading file");
@@ -264,7 +228,6 @@ export default function AdminDashboard() {
       if (!res.ok) return toast.error(data.message || "Failed to delete lead");
       toast.success("Lead deleted ✅");
       fetchUploads();
-      fetchStats(); // ✅ refresh stats after deleting lead
     } catch {
       toast.error("Network error while deleting lead");
     }
@@ -345,10 +308,10 @@ export default function AdminDashboard() {
             <h3 className="text-gray-500">Total Agents</h3>
             <p className="text-2xl font-bold">{stats.agentCount}</p>
           </div>
-          {/* <div className="bg-white p-4 rounded-lg shadow text-center">
+          <div className="bg-white p-4 rounded-lg shadow text-center">
             <h3 className="text-gray-500">Total Leads</h3>
             <p className="text-2xl font-bold">{stats.leadCount}</p>
-          </div> */}
+          </div>
         </div>
 
         {/* Add/Edit Agent */}

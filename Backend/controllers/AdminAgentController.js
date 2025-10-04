@@ -194,14 +194,22 @@ export const getAllUploads = async (req, res) => {
     // Find all agents created by this admin
     const agents = await User.find({ role: "agent", createdBy: adminId }).select("_id");
 
-    if (!agents.length) return res.json({ uploads: [] });
+    if (!agents.length) return res.json({ uploads: [], counts: { totalLeads: 0, activeLeads: 0, inactiveLeads: 0 } });
 
     const agentIds = agents.map((a) => a._id);
 
     // Fetch uploads for these agents
     const uploads = await AgentList.find({ agent: { $in: agentIds } }).populate("agent", "name email");
 
-    res.json({ uploads });
+    // Calculate lead counts
+    const totalLeads = uploads.length;
+    const activeLeads = uploads.filter((l) => l.status === "active").length;
+    const inactiveLeads = uploads.filter((l) => l.status === "inactive").length;
+
+    res.json({
+      uploads,
+      counts: { totalLeads, activeLeads, inactiveLeads },
+    });
   } catch (err) {
     console.error("Error fetching uploads:", err);
     res.status(500).json({ message: "Server error" });
